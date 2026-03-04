@@ -1,0 +1,9 @@
+{
+  "name": "digighana",
+  "version": "1.0.0",
+  "description": "DigiGhana AI Tutor Platform",
+  "main": "index.js",
+  "dependencies": {
+    "openai": "^4.0.0"
+  }
+}

@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DigiGhana AI Tutor</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:Inter, Arial, sans-serif;
+    background:#0f172a;color:white;
+    height:100vh;display:flex;flex-direction:column;transition:.25s;
+  }
+
+  header{padding:16px;text-align:center;background:#0f172a88;font-weight:700;font-size:18px}
+  .navbar{display:flex;gap:8px;justify-content:center;padding:12px;background:#0b1220}
+  .navbar button{
+    padding:8px 12px;border-radius:8px;border:none;background:#2563eb;color:white;cursor:pointer;
+  }
+
+  /* layout sections */
+  .section{display:none;flex:1;padding:18px;overflow:auto}
+  .section.active{display:flex;flex-direction:column}
+
+  /* CHAT */
+  #chat-box{flex:1;overflow-y:auto;padding:8px 4px;margin-bottom:12px}
+  .message{padding:10px 12px;border-radius:12px;margin:8px 0;max-width:78%;word-break:break-word;line-height:1.4}
+  .message.user{background:#2563eb;margin-left:auto;color:white}
+  .message.bot{background:#1f2937;color:#e6eef7}
+
+  .typing {
+    display:inline-flex;gap:6px;align-items:center;padding:8px 12px;border-radius:12px;background:#1f2937;
+  }
+  .typing span{width:8px;height:8px;border-radius:50%;background:#94a3b8;animation:dg-bounce 1s infinite}
+  .typing span:nth-child(2){animation-delay:.15s}
+  .typing span:nth-child(3){animation-delay:.3s}
+  @keyframes dg-bounce{0%,80%,100%{transform:translateY(0);opacity:.5}40%{transform:translateY(-6px);opacity:1}}
+
+  #input-area{display:flex;gap:8px;margin-top:6px}
+  #user-input{
+    flex:1;padding:10px;border-radius:8px;border:none;background:#0b1220;color:white;outline:none;
+  }
+  #user-input::placeholder{color:#94a3b8}
+  #send-btn,#clear-btn{padding:10px;border-radius:8px;border:none;cursor:pointer}
+  #send-btn{background:#22c55e;color:#071018}
+  #send-btn:disabled{opacity:.5;cursor:not-allowed}
+  #clear-btn{background:#334155;color:#cbd5e1}
+
+  /* LEARN */
+  .subject-list{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .subject-btn{padding:8px 10px;border-radius:8px;border:none;background:#06b6d4;color:#042022;cursor:pointer}
+  .topic-list{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .topic-btn{padding:6px 10px;border-radius:8px;border:1px solid #2b3946;background:#0b1720;color:#dbeafe;cursor:pointer}
+
+  #lesson-area{margin-top:12px;padding:12px;border-radius:10px;background:#071024;border:1px solid #112031}
+  #lesson-area h3{margin-bottom:8px}
+  .quiz-choices{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .choice-btn{padding:8px 10px;border-radius:8px;border:none;background:#1f6b44;color:white;cursor:pointer;text-align:left}
+  .choice-btn.wrong{background:#7f1d1d}
+  .choice-btn.correct{background:#065f46}
+
+  .progress-bar{width:100%;height:12px;background:#172133;border-radius:8px;margin-top:12px}
+  .progress{height:100%;width:0%;background:#22c55e;border-radius:8px;transition:width .25s}
+
+  /* AUTHOR */
+  .author-card{padding:12px;border-radius:10px;background:#071024;border:1px solid #122033}
+  .badge{display:inline-block;background:#fde68a;color:#92400e;padding:6px 8px;border-radius:8px;margin-right:6px;font-weight:700}
+
+  /* LIGHT THEME OVERRIDES */
+  .light-mode{background:#f1f5f9;color:#0f172a}
+  .light-mode header{background:#e6eef8;color:#0f172a}
+  .light-mode .navbar{background:#e6eef8}
+  .light-mode .navbar button{background:#2563eb;color:white}
+  .light-mode .message.bot{background:#eef2ff;color:#0f172a}
+  .light-mode #user-input{background:white;color:#0f172a}
+  .light-mode .subject-btn{background:#06b6d4}
+  .light-mode .choice-btn{background:#059669;color:white}
+  .light-mode .progress-bar{background:#e2e8f0}
+  .light-mode .topic-btn{background:#ffffff;color:#0f172a;border:1px solid #cbd5e1}
+</style>
+</head>
+<body>
+
+<header>🎓 DigiGhana AI Tutor — Gilbert Sam</header>
+
+<nav class="navbar" role="navigation" aria-label="Main">
+  <button data-section="chat-section">AI Tutor</button>
+  <button data-section="learn-section">Learn</button>
+  <button data-section="author-section">About Author</button>
+  <button id="themeToggle" title="Toggle theme">🌗</button>
+</nav>
+
+<!-- CHAT -->
+<section id="chat-section" class="section active" aria-live="polite">
+  <div id="chat-box" role="log" aria-label="Chat messages"></div>
+
+  <div id="input-area" aria-label="Message input area">
+    <input id="user-input" type="text" placeholder="Ask DigiGhana a question (press Enter to send)"/>
+    <button id="send-btn">Send</button>
+    <button id="clear-btn">Clear</button>
+  </div>
+</section>
+
+<!-- LEARN -->
+<section id="learn-section" class="section" aria-label="Learning content">
+  <h2>📚 SHS Curriculum</h2>
+
+  <div class="subject-list" role="list">
+    <button class="subject-btn" data-subject="math">Mathematics</button>
+    <button class="subject-btn" data-subject="science">Science</button>
+    <button class="subject-btn" data-subject="ict">ICT</button>
+    <button class="subject-btn" data-subject="english">English</button>
+  </div>
+
+  <div id="topic-container" class="topic-list" role="list"></div>
+
+  <div id="lesson-area" aria-live="polite">
+    <em>Select a subject and a topic to begin.</em>
+  </div>
+
+  <div class="progress-bar" aria-hidden="true"><div id="progress" class="progress"></div></div>
+</section>
+
+<!-- AUTHOR -->
+<section id="author-section" class="section" aria-label="About the author">
+  <h2>👨🏽‍💻 About Gilbert Sam</h2>
+  <div class="author-card">
+    <p><strong>Gilbert Sam</strong> — 17 years old, from Ampatia. Student at <em>Obuasi Sec Tech</em>.</p>
+
+    <p>Gilbert built DigiGhana to help students access clear, trustworthy explanations and exam practice. He’s driven by the belief that technology should help every Ghanaian student reach their potential.</p>
+
+    <p><span class="badge">Founder</span><span class="badge">Student</span><span class="badge">EdTech</span></p>
+
+    <blockquote style="margin-top:8px;padding-left:10px;border-left:3px solid #2563eb;color:#cfe8ff">
+      “Education is the most powerful tool for change — I want DigiGhana to be that tool.” — Gilbert
+    </blockquote>
+
+    <p style="margin-top:10px;font-size:13px;color:#9fb2c8">Parents: Eugenia Sam (mother), Joseph Fiifi Sam (father)</p>
+  </div>
+</section>
+
+<script>
+/* ---------- Section switching ---------- */
+document.querySelectorAll('[data-section]').forEach(btn=>{
+  btn.addEventListener('click', ()=> {
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById(btn.dataset.section).classList.add('active');
+  });
+});
+
+/* ---------- Theme toggle ---------- */
+document.getElementById('themeToggle').addEventListener('click', ()=>{
+  document.body.classList.toggle('light-mode');
+});
+
+/* ---------- Chat system ---------- */
+const chatBox = document.getElementById('chat-box');
+const input = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+const clearBtn = document.getElementById('clear-btn');
+
+let history = []; // conversation history (trimmed before sending)
+
+function welcomeMessage(){
+  appendMessage('bot', "👋 Hi — I'm DigiGhana. Ask me anything about SHS topics or your schoolwork.");
+}
+welcomeMessage();
+
+/** appendMessage: returns element so caller can hold a stable reference */
+function appendMessage(role, text){
+  const el = document.createElement('div');
+  el.className = 'message ' + role;
+  if(role === 'bot' && text === '__typing__'){
+    // typing bubble (animated)
+    el.className = 'message bot';
+    const t = document.createElement('div');
+    t.className = 'typing';
+    t.innerHTML = '<span></span><span></span><span></span>';
+    el.appendChild(t);
+  } else {
+    el.textContent = text;
+  }
+  chatBox.appendChild(el);
+  chatBox.scrollTop = chatBox.scrollHeight;
+  return el;
+}
+
+/* Send message to backend */
+async function sendMessage(){
+  if(sendBtn.disabled) return;
+  const msg = input.value.trim();
+  if(!msg) return;
+
+  appendMessage('user', msg);
+  history.push({role:'user', content: msg});
+  input.value = '';
+  sendBtn.disabled = true;
+
+  // show typing indicator and keep reference
+  const typingEl = appendMessage('bot', '__typing__');
+
+  try {
+    const payload = { messages: history.slice(-20) }; // trim on frontend too
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+
+    if(!resp.ok){
+      throw new Error('server error');
+    }
+
+    const data = await resp.json();
+    // remove typing bubble and append real reply
+    typingEl.remove();
+    appendMessage('bot', data.reply || 'Sorry, no reply from server.');
+    history.push({role:'assistant', content: data.reply || ''});
+  } catch(err){
+    // ensure typingEl removed and error shown
+    try{ typingEl.remove(); } catch(e){}
+    appendMessage('bot', '⚠️ Could not reach the server. Check deployment and API key.');
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+/* Enter key — blocked while sendBtn disabled */
+input.addEventListener('keydown', e=>{
+  if(e.key === 'Enter' && !sendBtn.disabled) sendMessage();
+});
+sendBtn.addEventListener('click', sendMessage);
+
+/* Clear chat resets welcome and history */
+clearBtn.addEventListener('click', ()=>{
+  chatBox.innerHTML = '';
+  history = [];
+  welcomeMessage();
+});
+
+/* ---------- Learning system (full engine) ---------- */
+
+/*
+  lessons structure:
+  lessons = {
+    subjectKey: {
+      topics: {
+        "Topic name": {
+           content: "<p>...HTML...</p>",
+           quiz: {
+             type: "mcq",
+             question: "What's 2+2?",
+             choices: ["2","3","4"],
+             answerIndex: 2
+           }
+        }, ...
+      }
+    }, ...
+  }
+*/
+const lessons = {
+  math: {
+    topics: {
+      "Algebra — Linear Equations": {
+        content: `
+          <p>Algebra studies how to manipulate symbols and solve equations. A linear equation has the form ax + b = c.</p>
+          <p><strong>Example:</strong> Solve 3x + 5 = 14 → subtract 5: 3x = 9 → x = 3.</p>
+          <p>Practice: Understand balancing — do the same operation on both sides.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "Solve: 2x + 4 = 12. What is x?",
+          choices: ["2", "4", "6", "8"],
+          answerIndex: 1
+        }
+      },
+      "Trigonometry — Basic Ratios": {
+        content: `
+          <p>Trigonometry relates angles of triangles to ratios: sin, cos, tan.</p>
+          <p>SOH CAH TOA: sin = opposite/hypotenuse, cos = adjacent/hypotenuse, tan = opposite/adjacent.</p>
+          <p><strong>Example:</strong> For right triangle with sides 3 (opp), 4 (adj), 5 (hyp), sin = 3/5.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "In SOH CAH TOA, what is 'cos'?",
+          choices: ["opposite/hypotenuse","adjacent/hypotenuse","opposite/adjacent"],
+          answerIndex: 1
+        }
+      }
+    }
+  },
+
+  science: {
+    topics: {
+      "Digestion — Overview": {
+        content: `
+          <p>The digestive system breaks down food so nutrients can be absorbed. It starts at the mouth.</p>
+          <p>Main organs: mouth → oesophagus → stomach → small intestine → large intestine.</p>
+          <p><strong>Tip:</strong> Enzymes in saliva begin carbohydrate digestion.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "Where does digestion begin?",
+          choices: ["Stomach", "Mouth", "Small intestine"],
+          answerIndex: 1
+        }
+      },
+      "Respiration": {
+        content: `
+          <p>Respiration provides energy by breaking down glucose. There are two types: aerobic (with oxygen) and anaerobic (without oxygen).</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "Aerobic respiration requires which gas?",
+          choices: ["Carbon dioxide", "Nitrogen", "Oxygen"],
+          answerIndex: 2
+        }
+      }
+    }
+  },
+
+  ict: {
+    topics: {
+      "HTML — Basics": {
+        content: `
+          <p>HTML stands for HyperText Markup Language. It's used to structure web pages using tags like &lt;h1&gt;, &lt;p&gt;, &lt;a&gt;.</p>
+          <p><strong>Example:</strong> &lt;p&gt;Hello world&lt;/p&gt; creates a paragraph.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "What does HTML stand for?",
+          choices: ["HyperText Markup Language","HighText Machine Language","Home Tool Markup Language"],
+          answerIndex: 0
+        }
+      },
+      "Cyber Security — Intro": {
+        content: `
+          <p>Cyber security protects systems and data. Use strong passwords, update software, and avoid suspicious links.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "Which is a good security practice?",
+          choices: ["Using 'password' as password","Clicking unknown links","Using strong unique passwords"],
+          answerIndex: 2
+        }
+      }
+    }
+  },
+
+  english: {
+    topics: {
+      "Parts of Speech": {
+        content: `
+          <p>Parts of speech include nouns, verbs, adjectives, adverbs, pronouns, prepositions, conjunctions.</p>
+          <p><strong>Example:</strong> 'The quick brown fox jumps.' — 'fox' is a noun, 'jumps' is a verb.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "Which word is a noun?",
+          choices: ["run","happiness","quickly"],
+          answerIndex: 1
+        }
+      },
+      "Essay Writing — Structure": {
+        content: `
+          <p>A strong essay has an introduction, body paragraphs (each a single idea), and a conclusion.</p>
+          <p><strong>Tip:</strong> Plan with an outline before you write.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "Which is part of an essay?",
+          choices: ["Introduction","Hashtag","#caption"],
+          answerIndex: 0
+        }
+      }
+    }
+  }
+};
+
+/* progress storage (persisted) */
+const PROGRESS_KEY = 'digighana_progress_v1';
+const savedProgress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+
+/* current subject state */
+let currentSubject = null;
+let progressValue = 0;
+const progressEl = document.getElementById('progress');
+const topicContainer = document.getElementById('topic-container');
+const lessonArea = document.getElementById('lesson-area');
+
+/* helper to set progress for UI and storage */
+function setProgressForSubject(subject, value){
+  value = Math.max(0, Math.min(100, value));
+  savedProgress[subject] = value;
+  localStorage.setItem(PROGRESS_KEY, JSON.stringify(savedProgress));
+  if(subject === currentSubject){
+    progressValue = value;
+    progressEl.style.width = progressValue + '%';
+  }
+}
+
+/* load subject topics */
+document.querySelectorAll('.subject-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const subject = btn.dataset.subject;
+    loadSubject(subject);
+  });
+});
+
+function loadSubject(subject){
+  currentSubject = subject;
+  // reset UI
+  topicContainer.innerHTML = '';
+  lessonArea.innerHTML = '<em>Select a topic to begin.</em>';
+  // reset progress for this subject if not saved
+  progressValue = savedProgress[subject] || 0;
+  progressEl.style.width = progressValue + '%';
+
+  // build topic buttons
+  const subjectObj = lessons[subject];
+  if(!subjectObj){ topicContainer.textContent = 'No topics available'; return; }
+
+  Object.keys(subjectObj.topics).forEach(topicName=>{
+    const tbtn = document.createElement('button');
+    tbtn.className = 'topic-btn';
+    tbtn.textContent = topicName;
+    tbtn.addEventListener('click', ()=> loadTopic(subject, topicName));
+    topicContainer.appendChild(tbtn);
+  });
+}
+
+/* load a single topic into lesson area */
+function loadTopic(subject, topicName){
+  const topic = lessons[subject].topics[topicName];
+  if(!topic) return;
+  // render lesson content
+  lessonArea.innerHTML = `<h3>${topicName}</h3>${topic.content}`;
+
+  // render quiz if present
+  if(topic.quiz && topic.quiz.type === 'mcq'){
+    const q = topic.quiz;
+    const qHtml = document.createElement('div');
+    qHtml.innerHTML = `<p style="margin-top:8px"><strong>Quiz:</strong> ${q.question}</p>`;
+    const choicesWrap = document.createElement('div');
+    choicesWrap.className = 'quiz-choices';
+
+    q.choices.forEach((choice, idx)=>{
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.textContent = choice;
+      btn.addEventListener('click', ()=>{
+        // disable all choices after selection
+        choicesWrap.querySelectorAll('button').forEach(b=>b.disabled = true);
+
+        if(idx === q.answerIndex){
+          btn.classList.add('correct');
+          // increase progress by 20% (example)
+          const increment = 20;
+          setProgressForSubject(subject, (savedProgress[subject] || 0) + increment);
+        } else {
+          btn.classList.add('wrong');
+        }
+      });
+      choicesWrap.appendChild(btn);
+    });
+
+    lessonArea.appendChild(choicesWrap);
+  }
+}
+
+/* initialize first subject UI (optional) */
+loadSubject('math');
+
+/* ---------- end learning system ---------- */
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DigiGhana AI Tutor</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:Inter, Arial, sans-serif;
+    background:#0f172a;color:white;
+    height:100vh;display:flex;flex-direction:column;transition:.25s;
+  }
+
+  header{padding:16px;text-align:center;background:#0f172a88;font-weight:700;font-size:18px}
+  .navbar{display:flex;gap:8px;justify-content:center;padding:12px;background:#0b1220}
+  .navbar button{
+    padding:8px 12px;border-radius:8px;border:none;background:#2563eb;color:white;cursor:pointer;
+  }
+
+  /* layout sections */
+  .section{display:none;flex:1;padding:18px;overflow:auto}
+  .section.active{display:flex;flex-direction:column}
+
+  /* CHAT */
+  #chat-box{flex:1;overflow-y:auto;padding:8px 4px;margin-bottom:12px}
+  .message{padding:10px 12px;border-radius:12px;margin:8px 0;max-width:78%;word-break:break-word;line-height:1.4}
+  .message.user{background:#2563eb;margin-left:auto;color:white}
+  .message.bot{background:#1f2937;color:#e6eef7}
+
+  .typing {
+    display:inline-flex;gap:6px;align-items:center;padding:8px 12px;border-radius:12px;background:#1f2937;
+  }
+  .typing span{width:8px;height:8px;border-radius:50%;background:#94a3b8;animation:dg-bounce 1s infinite}
+  .typing span:nth-child(2){animation-delay:.15s}
+  .typing span:nth-child(3){animation-delay:.3s}
+  @keyframes dg-bounce{0%,80%,100%{transform:translateY(0);opacity:.5}40%{transform:translateY(-6px);opacity:1}}
+
+  #input-area{display:flex;gap:8px;margin-top:6px}
+  #user-input{
+    flex:1;padding:10px;border-radius:8px;border:none;background:#0b1220;color:white;outline:none;
+  }
+  #user-input::placeholder{color:#94a3b8}
+  #send-btn,#clear-btn{padding:10px;border-radius:8px;border:none;cursor:pointer}
+  #send-btn{background:#22c55e;color:#071018}
+  #send-btn:disabled{opacity:.5;cursor:not-allowed}
+  #clear-btn{background:#334155;color:#cbd5e1}
+
+  /* LEARN */
+  .subject-list{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .subject-btn{padding:8px 10px;border-radius:8px;border:none;background:#06b6d4;color:#042022;cursor:pointer}
+  .topic-list{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .topic-btn{padding:6px 10px;border-radius:8px;border:1px solid #2b3946;background:#0b1720;color:#dbeafe;cursor:pointer}
+
+  #lesson-area{margin-top:12px;padding:12px;border-radius:10px;background:#071024;border:1px solid #112031}
+  #lesson-area h3{margin-bottom:8px}
+  .quiz-choices{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .choice-btn{padding:8px 10px;border-radius:8px;border:none;background:#1f6b44;color:white;cursor:pointer;text-align:left}
+  .choice-btn.wrong{background:#7f1d1d}
+  .choice-btn.correct{background:#065f46}
+
+  .progress-bar{width:100%;height:12px;background:#172133;border-radius:8px;margin-top:12px}
+  .progress{height:100%;width:0%;background:#22c55e;border-radius:8px;transition:width .25s}
+
+  /* AUTHOR */
+  .author-card{padding:12px;border-radius:10px;background:#071024;border:1px solid #122033}
+  .badge{display:inline-block;background:#fde68a;color:#92400e;padding:6px 8px;border-radius:8px;margin-right:6px;font-weight:700}
+
+  /* LIGHT THEME OVERRIDES */
+  .light-mode{background:#f1f5f9;color:#0f172a}
+  .light-mode header{background:#e6eef8;color:#0f172a}
+  .light-mode .navbar{background:#e6eef8}
+  .light-mode .navbar button{background:#2563eb;color:white}
+  .light-mode .message.bot{background:#eef2ff;color:#0f172a}
+  .light-mode #user-input{background:white;color:#0f172a}
+  .light-mode .subject-btn{background:#06b6d4}
+  .light-mode .choice-btn{background:#059669;color:white}
+  .light-mode .progress-bar{background:#e2e8f0}
+  .light-mode .topic-btn{background:#ffffff;color:#0f172a;border:1px solid #cbd5e1}
+</style>
+</head>
+<body>
+
+<header>🎓 DigiGhana AI Tutor — Gilbert Sam</header>
+
+<nav class="navbar" role="navigation" aria-label="Main">
+  <button data-section="chat-section">AI Tutor</button>
+  <button data-section="learn-section">Learn</button>
+  <button data-section="author-section">About Author</button>
+  <button id="themeToggle" title="Toggle theme">🌗</button>
+</nav>
+
+<!-- CHAT -->
+<section id="chat-section" class="section active" aria-live="polite">
+  <div id="chat-box" role="log" aria-label="Chat messages"></div>
+
+  <div id="input-area" aria-label="Message input area">
+    <input id="user-input" type="text" placeholder="Ask DigiGhana a question (press Enter to send)"/>
+    <button id="send-btn">Send</button>
+    <button id="clear-btn">Clear</button>
+  </div>
+</section>
+
+<!-- LEARN -->
+<section id="learn-section" class="section" aria-label="Learning content">
+  <h2>📚 SHS Curriculum</h2>
+
+  <div class="subject-list" role="list">
+    <button class="subject-btn" data-subject="math">Mathematics</button>
+    <button class="subject-btn" data-subject="science">Science</button>
+    <button class="subject-btn" data-subject="ict">ICT</button>
+    <button class="subject-btn" data-subject="english">English</button>
+  </div>
+
+  <div id="topic-container" class="topic-list" role="list"></div>
+
+  <div id="lesson-area" aria-live="polite">
+    <em>Select a subject and a topic to begin.</em>
+  </div>
+
+  <div class="progress-bar" aria-hidden="true"><div id="progress" class="progress"></div></div>
+</section>
+
+<!-- AUTHOR -->
+<section id="author-section" class="section" aria-label="About the author">
+  <h2>👨🏽‍💻 About Gilbert Sam</h2>
+  <div class="author-card">
+    <p><strong>Gilbert Sam</strong> — 17 years old, from Ampatia. Student at <em>Obuasi Sec Tech</em>.</p>
+
+    <p>Gilbert built DigiGhana to help students access clear, trustworthy explanations and exam practice. He’s driven by the belief that technology should help every Ghanaian student reach their potential.</p>
+
+    <p><span class="badge">Founder</span><span class="badge">Student</span><span class="badge">EdTech</span></p>
+
+    <blockquote style="margin-top:8px;padding-left:10px;border-left:3px solid #2563eb;color:#cfe8ff">
+      “Education is the most powerful tool for change — I want DigiGhana to be that tool.” — Gilbert
+    </blockquote>
+
+    <p style="margin-top:10px;font-size:13px;color:#9fb2c8">Parents: Eugenia Sam (mother), Joseph Fiifi Sam (father)</p>
+  </div>
+</section>
+
+<script>
+/* ---------- Section switching ---------- */
+document.querySelectorAll('[data-section]').forEach(btn=>{
+  btn.addEventListener('click', ()=> {
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById(btn.dataset.section).classList.add('active');
+  });
+});
+
+/* ---------- Theme toggle ---------- */
+document.getElementById('themeToggle').addEventListener('click', ()=>{
+  document.body.classList.toggle('light-mode');
+});
+
+/* ---------- Chat system ---------- */
+const chatBox = document.getElementById('chat-box');
+const input = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+const clearBtn = document.getElementById('clear-btn');
+
+let history = []; // conversation history (trimmed before sending)
+
+function welcomeMessage(){
+  appendMessage('bot', "👋 Hi — I'm DigiGhana. Ask me anything about SHS topics or your schoolwork.");
+}
+welcomeMessage();
+
+/** appendMessage: returns element so caller can hold a stable reference */
+function appendMessage(role, text){
+  const el = document.createElement('div');
+  el.className = 'message ' + role;
+  if(role === 'bot' && text === '__typing__'){
+    // typing bubble (animated)
+    el.className = 'message bot';
+    const t = document.createElement('div');
+    t.className = 'typing';
+    t.innerHTML = '<span></span><span></span><span></span>';
+    el.appendChild(t);
+  } else {
+    el.textContent = text;
+  }
+  chatBox.appendChild(el);
+  chatBox.scrollTop = chatBox.scrollHeight;
+  return el;
+}
+
+/* Send message to backend */
+async function sendMessage(){
+  if(sendBtn.disabled) return;
+  const msg = input.value.trim();
+  if(!msg) return;
+
+  appendMessage('user', msg);
+  history.push({role:'user', content: msg});
+  input.value = '';
+  sendBtn.disabled = true;
+
+  // show typing indicator and keep reference
+  const typingEl = appendMessage('bot', '__typing__');
+
+  try {
+    const payload = { messages: history.slice(-20) }; // trim on frontend too
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+
+    if(!resp.ok){
+      throw new Error('server error');
+    }
+
+    const data = await resp.json();
+    // remove typing bubble and append real reply
+    typingEl.remove();
+    appendMessage('bot', data.reply || 'Sorry, no reply from server.');
+    history.push({role:'assistant', content: data.reply || ''});
+  } catch(err){
+    // ensure typingEl removed and error shown
+    try{ typingEl.remove(); } catch(e){}
+    appendMessage('bot', '⚠️ Could not reach the server. Check deployment and API key.');
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+/* Enter key — blocked while sendBtn disabled */
+input.addEventListener('keydown', e=>{
+  if(e.key === 'Enter' && !sendBtn.disabled) sendMessage();
+});
+sendBtn.addEventListener('click', sendMessage);
+
+/* Clear chat resets welcome and history */
+clearBtn.addEventListener('click', ()=>{
+  chatBox.innerHTML = '';
+  history = [];
+  welcomeMessage();
+});
+
+/* ---------- Learning system (full engine) ---------- */
+
+/*
+  lessons structure:
+  lessons = {
+    subjectKey: {
+      topics: {
+        "Topic name": {
+           content: "<p>...HTML...</p>",
+           quiz: {
+             type: "mcq",
+             question: "What's 2+2?",
+             choices: ["2","3","4"],
+             answerIndex: 2
+           }
+        }, ...
+      }
+    }, ...
+  }
+*/
+const lessons = {
+  math: {
+    topics: {
+      "Algebra — Linear Equations": {
+        content: `
+          <p>Algebra studies how to manipulate symbols and solve equations. A linear equation has the form ax + b = c.</p>
+          <p><strong>Example:</strong> Solve 3x + 5 = 14 → subtract 5: 3x = 9 → x = 3.</p>
+          <p>Practice: Understand balancing — do the same operation on both sides.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "Solve: 2x + 4 = 12. What is x?",
+          choices: ["2", "4", "6", "8"],
+          answerIndex: 1
+        }
+      },
+      "Trigonometry — Basic Ratios": {
+        content: `
+          <p>Trigonometry relates angles of triangles to ratios: sin, cos, tan.</p>
+          <p>SOH CAH TOA: sin = opposite/hypotenuse, cos = adjacent/hypotenuse, tan = opposite/adjacent.</p>
+          <p><strong>Example:</strong> For right triangle with sides 3 (opp), 4 (adj), 5 (hyp), sin = 3/5.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "In SOH CAH TOA, what is 'cos'?",
+          choices: ["opposite/hypotenuse","adjacent/hypotenuse","opposite/adjacent"],
+          answerIndex: 1
+        }
+      }
+    }
+  },
+
+  science: {
+    topics: {
+      "Digestion — Overview": {
+        content: `
+          <p>The digestive system breaks down food so nutrients can be absorbed. It starts at the mouth.</p>
+          <p>Main organs: mouth → oesophagus → stomach → small intestine → large intestine.</p>
+          <p><strong>Tip:</strong> Enzymes in saliva begin carbohydrate digestion.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "Where does digestion begin?",
+          choices: ["Stomach", "Mouth", "Small intestine"],
+          answerIndex: 1
+        }
+      },
+      "Respiration": {
+        content: `
+          <p>Respiration provides energy by breaking down glucose. There are two types: aerobic (with oxygen) and anaerobic (without oxygen).</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "Aerobic respiration requires which gas?",
+          choices: ["Carbon dioxide", "Nitrogen", "Oxygen"],
+          answerIndex: 2
+        }
+      }
+    }
+  },
+
+  ict: {
+    topics: {
+      "HTML — Basics": {
+        content: `
+          <p>HTML stands for HyperText Markup Language. It's used to structure web pages using tags like &lt;h1&gt;, &lt;p&gt;, &lt;a&gt;.</p>
+          <p><strong>Example:</strong> &lt;p&gt;Hello world&lt;/p&gt; creates a paragraph.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "What does HTML stand for?",
+          choices: ["HyperText Markup Language","HighText Machine Language","Home Tool Markup Language"],
+          answerIndex: 0
+        }
+      },
+      "Cyber Security — Intro": {
+        content: `
+          <p>Cyber security protects systems and data. Use strong passwords, update software, and avoid suspicious links.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "Which is a good security practice?",
+          choices: ["Using 'password' as password","Clicking unknown links","Using strong unique passwords"],
+          answerIndex: 2
+        }
+      }
+    }
+  },
+
+  english: {
+    topics: {
+      "Parts of Speech": {
+        content: `
+          <p>Parts of speech include nouns, verbs, adjectives, adverbs, pronouns, prepositions, conjunctions.</p>
+          <p><strong>Example:</strong> 'The quick brown fox jumps.' — 'fox' is a noun, 'jumps' is a verb.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "Which word is a noun?",
+          choices: ["run","happiness","quickly"],
+          answerIndex: 1
+        }
+      },
+      "Essay Writing — Structure": {
+        content: `
+          <p>A strong essay has an introduction, body paragraphs (each a single idea), and a conclusion.</p>
+          <p><strong>Tip:</strong> Plan with an outline before you write.</p>
+        `,
+        quiz: {
+          type: "mcq",
+          question: "Which is part of an essay?",
+          choices: ["Introduction","Hashtag","#caption"],
+          answerIndex: 0
+        }
+      }
+    }
+  }
+};
+
+/* progress storage (persisted) */
+const PROGRESS_KEY = 'digighana_progress_v1';
+const savedProgress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+
+/* current subject state */
+let currentSubject = null;
+let progressValue = 0;
+const progressEl = document.getElementById('progress');
+const topicContainer = document.getElementById('topic-container');
+const lessonArea = document.getElementById('lesson-area');
+
+/* helper to set progress for UI and storage */
+function setProgressForSubject(subject, value){
+  value = Math.max(0, Math.min(100, value));
+  savedProgress[subject] = value;
+  localStorage.setItem(PROGRESS_KEY, JSON.stringify(savedProgress));
+  if(subject === currentSubject){
+    progressValue = value;
+    progressEl.style.width = progressValue + '%';
+  }
+}
+
+/* load subject topics */
+document.querySelectorAll('.subject-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const subject = btn.dataset.subject;
+    loadSubject(subject);
+  });
+});
+
+function loadSubject(subject){
+  currentSubject = subject;
+  // reset UI
+  topicContainer.innerHTML = '';
+  lessonArea.innerHTML = '<em>Select a topic to begin.</em>';
+  // reset progress for this subject if not saved
+  progressValue = savedProgress[subject] || 0;
+  progressEl.style.width = progressValue + '%';
+
+  // build topic buttons
+  const subjectObj = lessons[subject];
+  if(!subjectObj){ topicContainer.textContent = 'No topics available'; return; }
+
+  Object.keys(subjectObj.topics).forEach(topicName=>{
+    const tbtn = document.createElement('button');
+    tbtn.className = 'topic-btn';
+    tbtn.textContent = topicName;
+    tbtn.addEventListener('click', ()=> loadTopic(subject, topicName));
+    topicContainer.appendChild(tbtn);
+  });
+}
+
+/* load a single topic into lesson area */
+function loadTopic(subject, topicName){
+  const topic = lessons[subject].topics[topicName];
+  if(!topic) return;
+  // render lesson content
+  lessonArea.innerHTML = `<h3>${topicName}</h3>${topic.content}`;
+
+  // render quiz if present
+  if(topic.quiz && topic.quiz.type === 'mcq'){
+    const q = topic.quiz;
+    const qHtml = document.createElement('div');
+    qHtml.innerHTML = `<p style="margin-top:8px"><strong>Quiz:</strong> ${q.question}</p>`;
+    const choicesWrap = document.createElement('div');
+    choicesWrap.className = 'quiz-choices';
+
+    q.choices.forEach((choice, idx)=>{
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.textContent = choice;
+      btn.addEventListener('click', ()=>{
+        // disable all choices after selection
+        choicesWrap.querySelectorAll('button').forEach(b=>b.disabled = true);
+
+        if(idx === q.answerIndex){
+          btn.classList.add('correct');
+          // increase progress by 20% (example)
+          const increment = 20;
+          setProgressForSubject(subject, (savedProgress[subject] || 0) + increment);
+        } else {
+          btn.classList.add('wrong');
+        }
+      });
+      choicesWrap.appendChild(btn);
+    });
+
+    lessonArea.appendChild(choicesWrap);
+  }
+}
+
+/* initialize first subject UI (optional) */
+loadSubject('math');
+
+/* ---------- end learning system ---------- */
+</script>
+</body>
+</html>
